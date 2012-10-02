@@ -12,6 +12,18 @@
  */
 package net.nordu.crowd.shibboleth;
 
+import java.io.IOException;
+import java.rmi.RemoteException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import com.atlassian.crowd.embedded.api.Directory;
 import com.atlassian.crowd.embedded.api.PasswordCredential;
 import com.atlassian.crowd.exception.ApplicationPermissionException;
@@ -24,7 +36,6 @@ import com.atlassian.crowd.exception.InvalidCredentialException;
 import com.atlassian.crowd.exception.InvalidGroupException;
 import com.atlassian.crowd.exception.InvalidTokenException;
 import com.atlassian.crowd.exception.InvalidUserException;
-import com.atlassian.crowd.exception.MembershipNotFoundException;
 import com.atlassian.crowd.exception.ObjectNotFoundException;
 import com.atlassian.crowd.exception.OperationFailedException;
 import com.atlassian.crowd.exception.UserNotFoundException;
@@ -40,9 +51,9 @@ import com.atlassian.crowd.integration.springsecurity.user.CrowdUserDetails;
 import com.atlassian.crowd.integration.springsecurity.user.CrowdUserDetailsService;
 import com.atlassian.crowd.manager.application.ApplicationAccessDeniedException;
 import com.atlassian.crowd.manager.authentication.TokenAuthenticationManager;
+import com.atlassian.crowd.manager.directory.DirectoryManager;
 import com.atlassian.crowd.model.authentication.UserAuthenticationContext;
 import com.atlassian.crowd.model.authentication.ValidationFactor;
-import com.atlassian.crowd.manager.directory.DirectoryManager;
 import com.atlassian.crowd.model.token.Token;
 import com.atlassian.crowd.model.user.User;
 import com.atlassian.crowd.model.user.UserConstants;
@@ -50,17 +61,6 @@ import com.atlassian.crowd.model.user.UserTemplate;
 import com.atlassian.crowd.service.UserManager;
 import com.atlassian.crowd.service.soap.client.SecurityServerClient;
 import com.atlassian.user.util.Base64Encoder;
-import java.io.File;
-import java.io.IOException;
-import java.rmi.RemoteException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Set;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.log4j.Logger;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.Authentication;
@@ -87,12 +87,13 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
     private UserManager userManager;
     private TokenAuthenticationManager tokenAuthenticationManager;
     private DirectoryManager directoryManager;
-    private static Configuration config;
     private static SecureRandom prng;
     private static MessageDigest sha;
 
+  private Mapping mapping;
+
+
     static {
-        config = ConfigurationLoader.loadConfiguration(null);
         try {
             prng = SecureRandom.getInstance("SHA1PRNG");
             sha = MessageDigest.getInstance("SHA-1");
@@ -368,45 +369,35 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
      * @param username
      */
     private void updateUserGroups(String username, HttpServletRequest request) {
-        checkReloadConfig();
-        Set<String> groupsFromHeaders = new HashSet<String>();
-        Set<String> mappedGroups = new HashSet<String>();
-        log.debug("Updating user groups");
+      mapping.reloadIfNecessary();
+      log.debug("Updating user groups");
 
-        // Go through group filters
-        for (GroupMapper mapper : config.getGroupMappers()) {
-            mappedGroups.add(mapper.getGroup());
-            if (mapper.match(request)) {
-                addUserToGroup(username, mapper.getGroup());
-                groupsFromHeaders.add(mapper.getGroup());
-            }
-        }
+      Set<String> groupsUserShouldBeIn;
+        Set<String> allConfiguredGroups;
 
-        // Decide which groups to purge by differencing groups from headers from
-        // all the filtered groups and intersecting that with the current groups
-        // of the user
-        Set<String> candidatesForPurging = getCurrentGroupsForUser(username);
-        mappedGroups.removeAll(groupsFromHeaders);
-        candidatesForPurging.retainAll(mappedGroups);
-        for (String groupToPurge : candidatesForPurging) {
+      groupsUserShouldBeIn = mapping.getGroupsForUser(request, null);
+      allConfiguredGroups = mapping.getAllGroups();
+
+
+      // Decide which groups to purge by differencing groups from headers from
+      // all the filtered groups and intersecting that with the current groups
+      // of the user
+      Set<String> groupsToPurge = getCurrentGroupsForUser(username);
+      groupsToPurge.removeAll(groupsUserShouldBeIn);
+      groupsToPurge.retainAll(allConfiguredGroups);
+
+
+      for (String group : groupsUserShouldBeIn) {
+        addUserToGroup(username, group);
+      }
+
+      for (String groupToPurge : groupsToPurge) {
             if (log.isDebugEnabled()) {
                 log.debug("Removing user from group " + groupToPurge);
             }
             try {
                 securityServerClient.removePrincipalFromGroup(username, groupToPurge);
-            } catch (RemoteException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (InvalidAuthorizationTokenException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (GroupNotFoundException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (ApplicationPermissionException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (UserNotFoundException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (InvalidAuthenticationException e) {
-                log.error("Could not remove user from group " + groupToPurge, e);
-            } catch (MembershipNotFoundException e) {
+            } catch (Exception e) {
                 log.error("Could not remove user from group " + groupToPurge, e);
             }
         }
@@ -421,11 +412,7 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
                     groups.add(groupName);
                 }
             }
-        } catch (RemoteException e) {
-            log.error("Error getting current groups for user", e);
-        } catch (InvalidAuthorizationTokenException e) {
-            log.error("Error getting current groups for user", e);
-        } catch (InvalidAuthenticationException e) {
+        } catch (Exception e) {
             log.error("Error getting current groups for user", e);
         }
         return groups;
@@ -482,28 +469,6 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
         }
     }
 
-    /**
-     * Check if config needs to be reloaded
-     */
-    private void checkReloadConfig() {
-
-        if (config.isReloadConfig() && config.getConfigFile() != null) {
-            if (System.currentTimeMillis() < config.getConfigFileLastChecked() + config.getReloadConfigInterval()) {
-                return;
-            }
-
-            long configFileLastModified = new File(config.getConfigFile()).lastModified();
-
-            if (configFileLastModified != config.getConfigFileLastModified()) {
-                log.debug("Config file has been changed, reloading");
-                config = ConfigurationLoader.loadConfiguration(config.getConfigFile());
-            } else {
-                log.debug("Config file has not been changed, not reloading");
-                config.setConfigFileLastChecked(System.currentTimeMillis());
-            }
-        }
-    }
-
     public void setHttpAuthenticator(HttpAuthenticator httpAuthenticator) {
         this.httpAuthenticator = httpAuthenticator;
     }
@@ -538,4 +503,12 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
     public void setRequestToApplicationMapper(RequestToApplicationMapper requestToApplicationMapper) {
         this.requestToApplicationMapper = requestToApplicationMapper;
     }
+
+  /**
+   * Setter for Mapping implementation
+   * @param m the new mapping
+   */
+  public void setMapping(Mapping m) {
+    this.mapping = m;
+  }
 }
