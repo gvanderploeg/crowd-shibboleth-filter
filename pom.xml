@@ -151,7 +151,11 @@
       <version>${crowd.version}</version>
       <scope>provided</scope>
     </dependency>
-
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.6</version>
+    </dependency>
     <dependency>
       <groupId>org.surfnet.crowd</groupId>
       <artifactId>crowd-conext-plugin</artifactId>

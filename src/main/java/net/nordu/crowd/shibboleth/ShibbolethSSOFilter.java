@@ -14,12 +14,10 @@ package net.nordu.crowd.shibboleth;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -60,7 +58,6 @@ import com.atlassian.crowd.model.user.UserConstants;
 import com.atlassian.crowd.model.user.UserTemplate;
 import com.atlassian.crowd.service.UserManager;
 import com.atlassian.crowd.service.soap.client.SecurityServerClient;
-import com.atlassian.user.util.Base64Encoder;
 import org.apache.log4j.Logger;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.Authentication;
@@ -87,21 +84,8 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
     private UserManager userManager;
     private TokenAuthenticationManager tokenAuthenticationManager;
     private DirectoryManager directoryManager;
-    private static SecureRandom prng;
-    private static MessageDigest sha;
 
   private Mapping mapping;
-
-
-    static {
-        try {
-            prng = SecureRandom.getInstance("SHA1PRNG");
-            sha = MessageDigest.getInstance("SHA-1");
-        } catch (NoSuchAlgorithmException e) {
-            log.error(e);
-        }
-
-    }
 
     /**
      * This filter will process all requests and check for Shibboleth headers
@@ -266,15 +250,7 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
     }
 
     private String randomPassword() {
-
-        //generate a random number
-        String randomNum = new Integer(prng.nextInt()).toString();
-
-        //get its digest
-        byte[] result = sha.digest(randomNum.getBytes());
-        // The byte[] returned by MessageDigest does not have a nice
-        // textual representation so we Base64 encode it before returning it
-        return new String(Base64Encoder.encode(result));
+      return UUID.randomUUID().toString();
     }
 
     protected void doSetDetails(HttpServletRequest request, AbstractAuthenticationToken authRequest) {
@@ -322,8 +298,8 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
             if (authResult.getCredentials() != null) {
                 try {
                     httpAuthenticator.setPrincipalToken(request, response, authResult.getCredentials().toString());
-                    updateUserAttributes(request.getUserPrincipal().getName(), request);
-                    updateUserGroups(request.getUserPrincipal().getName(), request);
+                    updateUserAttributes(authResult.getName(), request);
+                    updateUserGroups(authResult.getName(), request, response);
                 } catch (Exception e) {
                     // occurs if application's auth token expires while trying to look up the domain property from the Crowd server
                     logger.error("Unable to set Crowd SSO token", e);
@@ -339,7 +315,7 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
      */
     private void updateUserAttributes(String username, HttpServletRequest request) {
         try {
-            Directory directory = directoryManager.findDirectoryByName("System users");
+            Directory directory = directoryManager.findDirectoryByName("Test internal directory");
             User foundUser = directoryManager.findUserByName(directory.getId(), username);
             UserTemplate mutableUser = new UserTemplate(foundUser);
             String firstName = request.getHeader("givenName");
@@ -368,14 +344,14 @@ public class ShibbolethSSOFilter extends AuthenticationProcessingFilter {
      * Update user groups according to the group mappings
      * @param username
      */
-    private void updateUserGroups(String username, HttpServletRequest request) {
+    private void updateUserGroups(String username, HttpServletRequest request, HttpServletResponse response) {
       mapping.reloadIfNecessary();
       log.debug("Updating user groups");
 
       Set<String> groupsUserShouldBeIn;
         Set<String> allConfiguredGroups;
 
-      groupsUserShouldBeIn = mapping.getGroupsForUser(request, null);
+      groupsUserShouldBeIn = mapping.getGroupsForUser(request, response);
       allConfiguredGroups = mapping.getAllGroups();
 
 

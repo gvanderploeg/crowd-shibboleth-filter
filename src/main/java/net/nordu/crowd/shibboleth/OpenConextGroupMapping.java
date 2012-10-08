@@ -1,6 +1,5 @@
 package net.nordu.crowd.shibboleth;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -24,28 +23,19 @@ import static org.surfnet.crowd.ConfigurationFormServlet.SETTING_MAPPING;
 public class OpenConextGroupMapping implements Mapping {
 
   private final static Logger LOG = LoggerFactory.getLogger(OpenConextGroupMapping.class);
-  private PluginSettingsFactory settingsFactory;
-
 
   private OpenConextOAuthClient apiClient;
 
 
   public void reloadIfNecessary() {
-    // not applicable in this implementation
+    // TODO: probably use plugin-settings to inject API-client settings into apiClient?
   }
 
   public Set<String> getGroupsForUser(HttpServletRequest request, HttpServletResponse response) {
     String user = request.getHeader("REMOTE_USER");
-    if (!apiClient.isAccessTokenGranted(user)) {
-      try {
-        response.sendRedirect(apiClient.getAuthorizationUrl());
-      } catch (IOException e) {
-        LOG.error("while redirecting to OAuth authorization url", e);
-      }
-    }
-
 
     List<Group20> externalGroup20s = apiClient.getGroups20(user, user);
+    LOG.info("User {} has groups in conext: {}", user, externalGroup20s);
     Set<String> groupNames = getGroupNames(externalGroup20s);
 
     Set<String> crowdGroups = new HashSet<String>();
@@ -82,16 +72,15 @@ public class OpenConextGroupMapping implements Mapping {
   }
 
   protected Set<GroupMapping> getGroupMappings() {
-    PluginSettings settings = settingsFactory.createGlobalSettings();
+    PluginSettings settings = getSettingsFactory().createGlobalSettings();
     return new HashSet<GroupMapping>(ConextConfig.mappingsFromString((String) settings.get(SETTING_MAPPING)));
-  }
-
-  public void setSettingsFactory(PluginSettingsFactory settingsFactory) {
-    this.settingsFactory = settingsFactory;
   }
 
   public void setApiClient(OpenConextOAuthClient apiClient) {
     this.apiClient = apiClient;
   }
 
+  public PluginSettingsFactory getSettingsFactory() {
+    return PluginSettingsAccessor.getPluginSettingsFactory();
+  }
 }
