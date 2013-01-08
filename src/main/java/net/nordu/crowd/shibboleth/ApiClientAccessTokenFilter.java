@@ -2,36 +2,49 @@ package net.nordu.crowd.shibboleth;
 
 import java.io.IOException;
 
-import javax.servlet.Filter;
 import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import nl.surfnet.coin.api.client.OpenConextOAuthClientImpl;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import nl.surfnet.coin.api.client.OpenConextOAuthClient;
+import org.springframework.web.filter.GenericFilterBean;
+import org.surfnet.crowd.model.ConextConfig;
 
 /**
  * Servlet filter that obtains an access token for its ApiClient, by redirecting to the authorization url.
  */
-public class ApiClientAccessTokenFilter implements Filter {
+public class ApiClientAccessTokenFilter extends GenericFilterBean {
+
+  private ConextConfigService conextConfigService = new ConextConfigService();
 
   public static final String ORIGINAL_URL_SESSION_ATTR = "ApiClientAccessTokenFilter.ORIGINAL_URL";
 
   Logger LOG = LoggerFactory.getLogger(ApiClientAccessTokenFilter.class);
-  private OpenConextOAuthClient apiClient;
+
+  private OpenConextOAuthClientImpl apiClient;
 
   private UserIdResolver userIdResolver;
 
-  public void init(FilterConfig filterConfig) throws ServletException {
+  public void configureApiClient() throws ServletException {
+    ConextConfig conextConfig = conextConfigService.getConfig();
+    apiClient.setCallbackUrl(conextConfig.getCallbackUrl());
+    apiClient.setConsumerKey(conextConfig.getApiKey());
+    apiClient.setConsumerSecret(conextConfig.getApiSecret());
+    apiClient.setEndpointBaseUrl(conextConfig.getApiUrl());
+
+    LOG.debug("Set apiClient's callback URL to: {}", conextConfig.getCallbackUrl());
   }
 
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    // TODO: call not always
+    configureApiClient();
+
     HttpServletRequest req = (HttpServletRequest) request;
     String userId = userIdResolver.resolveUserId(request, response);
 
@@ -70,9 +83,6 @@ public class ApiClientAccessTokenFilter implements Filter {
       .append(request.getQueryString())
       .toString();
   }
-  public void setApiClient(OpenConextOAuthClient apiClient) {
-    this.apiClient = apiClient;
-  }
 
   public void setUserIdResolver(UserIdResolver userIdResolver) {
     this.userIdResolver = userIdResolver;
@@ -100,5 +110,9 @@ public class ApiClientAccessTokenFilter implements Filter {
      * @return the resolved userId
      */
     String resolveUserId(ServletRequest request, ServletResponse response);
+  }
+
+  public void setApiClient(OpenConextOAuthClientImpl apiClient) {
+    this.apiClient = apiClient;
   }
 }

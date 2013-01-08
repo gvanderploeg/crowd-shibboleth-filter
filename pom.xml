@@ -159,18 +159,33 @@
     <dependency>
       <groupId>org.surfnet.crowd</groupId>
       <artifactId>crowd-conext-plugin</artifactId>
-      <version>1.0.0-SNAPSHOT</version>
+      <version>1.0.1-SNAPSHOT</version>
     </dependency>
 
 
     <dependency>
       <groupId>org.surfnet.coin</groupId>
       <artifactId>coin-api-client</artifactId>
-      <version>2.8.8</version>
+      <version>2.14.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-beans</artifactId>
+        </exclusion>
+      </exclusions>
+
+    </dependency>
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>1.16</version>
     </dependency>
 
-
-  </dependencies>
+    </dependencies>
 
   <build>
     <plugins>
@@ -190,6 +205,49 @@
           <source>1.5</source>
           <target>1.5</target>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.2</version>
+        <configuration>
+          <descriptors>
+            <descriptor>src/main/assembly/jar-with-selected-deps.xml</descriptor>
+          </descriptors>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly-boo</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <unzip src="target/shibboleth-filter-${version}-jar-with-selected-deps.jar" dest="target/foo-tmp">
+                  <patternset>
+                    <exclude name="org/apache/commons/**" />
+                  </patternset>
+                </unzip>
+                <zip basedir="target/foo-tmp" destfile="target/shibboleth-filter-${version}-with-filtered-dependencies.jar" />
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

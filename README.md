@@ -6,8 +6,25 @@ Shibboleth-filter
 To install the Shibboleth filter to crowd copy the created jar file to %crowd-webapp%/WEB-INF/lib
 and modify %crowd-webapp%/WEB-INF/classes/applicationContext-CrowdSecurity.xml.
 
-Add authenticationProcessingShibbolethFilter after authenticationProcessingFilter in the filterInvocationDefinitionSource of the springSecurityFilterChain bean like so:
-/**=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+Insert this line into the filterInvocationDefinitionSource of the springSecurityFilterChain bean, before the catchall:
+
+    /crowd/plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+
+It then looks like this:
+
+                    CONVERT_URL_TO_LOWERCASE_BEFORE_COMPARISON
+                    PATTERN_TYPE_APACHE_ANT
+                    /services/**=#NONE#
+                    /console/decorator/**=#NONE#
+                    /console/images/**=#NONE#
+                    /console/style/**=#NONE#
+                    /template/**=#NONE#
+                    /rest/syncfeedback/**=httpSessionContextIntegrationFilter
+                    /rest/**=#NONE#
+                    /plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+                    /**=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+
+(this basically adds a filter to requests to the ssocookie-servlet)
 
 Then add this bean definition after the authenticationProcessingFilter bean:
 
@@ -26,6 +43,7 @@ Then add this bean definition after the authenticationProcessingFilter bean:
         <property name="requestToApplicationMapper" ref="requestToApplicationMapper"/>
         <property name="mapping" ref="externalGroupMapping" />
     </bean>
+
 
 ## Group mapping
 Currently there are two implementations  for mapping external groups to Crowd groups:
@@ -62,16 +80,17 @@ Add a bean definition in the above mentioned applicationContext-CrowdSecurity.xm
 
 Fill in the properties according to your environment.
 
-Add apiClientAccessTokenFilter to the filter chain:
-/**=httpSessionContextIntegrationFilter,logoutFilter,apiClientAccessTokenFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+Add apiClientAccessTokenFilter to the filter chain line that was added before:
+
+    /crowd/plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,apiClientAccessTokenFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
 
 ### Quirks
 
 * All users in Crowd's internal db should be able to login to Crowd, to let the ShibbolethSSOFilter work. (why?)
 * The name of Crowd's internal db is hardcoded in ShibbolethSSOFilter
 * All dependencies of crowd-conext-plugin have to be copied to /crowd/webapp/WEB-INF/lib/ (unzip crowd-conext-jar, copy META-INF/lib/*)
-* Shibbolethfilter jar has to be copied to classpath manually
-* Cookie domain of Crowd has to be set
+* Shibbolethfilter jar (and all deps, by using the jar-with-dependencies from target/) has to be copied to classpath manually
+* Cookie domain of Crowd has to be set (Console -> Administration -> Cookie domain)
 
 ## Development
 To run JIRA using the SDK, you MUST use Sun JDK 6, not 7. Otherwise startup will fail with errors in the log file, and the web interface will redirect to a /jiraLocked url.
