@@ -59,16 +59,18 @@ Add a bean definition in the above mentioned applicationContext-CrowdSecurity.xm
 Finally you need to create a ShibbolethAuthGroupMapping.properties file in %crowd-webapp%/WEB-INF/classes. There is an example file under src/main/resources/
 
 ### Using OpenConext
-Add a bean definition in the above mentioned applicationContext-CrowdSecurity.xml.
+Add these bean definitions in the above mentioned applicationContext-CrowdSecurity.xml.
 
     <bean name="externalGroupMapping" class="net.nordu.crowd.shibboleth.OpenConextGroupMapping">
       <property name="apiClient" ref="openConextApiClient" />
+      <property name="conextConfigService" ref="conextConfigService" />
     </bean>
     <bean id="openConextApiClient" class="nl.surfnet.coin.api.client.OpenConextOAuthClientImpl">
+      <!-- these properties will be overwritten by configuration through the user interface. However, the component needs some sensible defaults. -->
       <property name="callbackUrl" value="http://localhost:4990/crowd/plugins/servlet/ssocookie" />
-      <property name="consumerKey" value="https://testsp.dev.surfconext.nl/shibboleth" />
-      <property name="consumerSecret" value="mysecret" />
-      <property name="endpointBaseUrl" value="https://api.dev.surfconext.nl/v1/" />
+      <property name="consumerKey" value="consumerKey" />
+      <property name="consumerSecret" value="secret" />
+      <property name="endpointBaseUrl" value="https://api.surfconext.nl/v1/" />
     </bean>
 
     <bean id="apiClientAccessTokenFilter" class="net.nordu.crowd.shibboleth.ApiClientAccessTokenFilter">
@@ -76,6 +78,13 @@ Add a bean definition in the above mentioned applicationContext-CrowdSecurity.xm
       <property name="userIdResolver">
         <bean class="net.nordu.crowd.shibboleth.ApiClientAccessTokenFilter$ShibbolethUserIdResolver" />
       </property>
+      <property name="conextConfigService" ref="conextConfigService" />
+    </bean>
+
+    <bean id="conextConfigService" class="net.nordu.crowd.shibboleth.ConextConfigService">
+      <property name="conextConfigUser" value="inherlutq8228ojoivhjmknbh" />
+      <property name="conextConfigPassword" value="noemeruifhpoi8899unhfvi" />
+      <property name="conextConfigUrl" value="http://localhost:4990/crowd/rest/conext-configuration/1.0/configuration.xml" />
     </bean>
 
 Fill in the properties according to your environment.

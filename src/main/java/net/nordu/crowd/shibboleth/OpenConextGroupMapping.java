@@ -20,7 +20,7 @@ public class OpenConextGroupMapping implements Mapping {
 
   private final static Logger LOG = LoggerFactory.getLogger(OpenConextGroupMapping.class);
 
-  private ConextConfigService conextConfigService = new ConextConfigService();
+  private ConextConfigService conextConfigService;
 
   private OpenConextOAuthClientImpl apiClient;
 

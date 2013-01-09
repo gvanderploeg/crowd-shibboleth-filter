@@ -21,11 +21,12 @@ import org.surfnet.crowd.model.ConextConfig;
  */
 public class ApiClientAccessTokenFilter extends GenericFilterBean {
 
-  private ConextConfigService conextConfigService = new ConextConfigService();
+  Logger LOG = LoggerFactory.getLogger(ApiClientAccessTokenFilter.class);
+
+  private ConextConfigService conextConfigService;
 
   public static final String ORIGINAL_URL_SESSION_ATTR = "ApiClientAccessTokenFilter.ORIGINAL_URL";
 
-  Logger LOG = LoggerFactory.getLogger(ApiClientAccessTokenFilter.class);
 
   private OpenConextOAuthClientImpl apiClient;
 
@@ -120,5 +121,9 @@ public class ApiClientAccessTokenFilter extends GenericFilterBean {
 
   public void setApiClient(OpenConextOAuthClientImpl apiClient) {
     this.apiClient = apiClient;
+  }
+
+  public void setConextConfigService(ConextConfigService conextConfigService) {
+    this.conextConfigService = conextConfigService;
   }
 }
