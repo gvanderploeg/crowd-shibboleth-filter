@@ -47,6 +47,12 @@ public class ApiClientAccessTokenFilter extends GenericFilterBean {
 
     HttpServletRequest req = (HttpServletRequest) request;
     String userId = userIdResolver.resolveUserId(request, response);
+    if (userId == null || userId.isEmpty()) {
+      String msg = "No userId available. Cannot continue. (is Shibboleth configured correctly?)";
+      LOG.info(msg + ". Will show this message to end user and stop processing request.");
+      response.getWriter().println(msg);
+      return;
+    }
 
     if (req.getParameter("code") != null) {
       LOG.debug("Callback from OAuth conversation for userId {}. Callback URL was: {}?{}",

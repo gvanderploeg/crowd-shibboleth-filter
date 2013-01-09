@@ -11,7 +11,7 @@ public class ConextConfigService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConextConfigService.class);
 
-  private static final String CONEXT_CONFIG_URL = "http://localhost:4990/crowd/rest/conext-configuration/1.0/configuration.json";
+  private static final String CONEXT_CONFIG_URL = "http://localhost:4990/crowd/rest/conext-configuration/1.0/configuration.xml";
   private static final String CONEXT_CONFIG_USER = "inherlutq8228ojoivhjmknbh";
   private static final String CONEXT_CONFIG_PASSWORD = "noemeruifhpoi8899unhfvi";
 
@@ -28,7 +28,8 @@ public class ConextConfigService {
 
     try {
       ConextConfig conextConfig = client
-        .resource(CONEXT_CONFIG_URL).get(ConextConfig.class);
+        .resource(CONEXT_CONFIG_URL)
+        .get(ConextConfig.class);
       LOG.debug("Got config from rest service: {}", conextConfig);
       return conextConfig;
     } catch (UniformInterfaceException e) {

@@ -8,7 +8,7 @@ and modify %crowd-webapp%/WEB-INF/classes/applicationContext-CrowdSecurity.xml.
 
 Insert this line into the filterInvocationDefinitionSource of the springSecurityFilterChain bean, before the catchall:
 
-    /crowd/plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+    /plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
 
 It then looks like this:
 
@@ -82,14 +82,13 @@ Fill in the properties according to your environment.
 
 Add apiClientAccessTokenFilter to the filter chain line that was added before:
 
-    /crowd/plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,apiClientAccessTokenFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
+    /plugins/servlet/ssocookie=httpSessionContextIntegrationFilter,logoutFilter,apiClientAccessTokenFilter,authenticationProcessingFilter,authenticationProcessingShibbolethFilter,securityContextHolderAwareRequestFilter,anonymousProcessingFilter,exceptionTranslationFilter,filterInvocationInterceptor
 
 ### Quirks
 
 * All users in Crowd's internal db should be able to login to Crowd, to let the ShibbolethSSOFilter work. (why?)
 * The name of Crowd's internal db is hardcoded in ShibbolethSSOFilter
-* All dependencies of crowd-conext-plugin have to be copied to /crowd/webapp/WEB-INF/lib/ (unzip crowd-conext-jar, copy META-INF/lib/*)
-* Shibbolethfilter jar (and all deps, by using the jar-with-dependencies from target/) has to be copied to classpath manually
+* Shibbolethfilter jar (and all deps, by using the jar-with-filtered-dependencies from target/) has to be copied to classpath manually
 * Cookie domain of Crowd has to be set (Console -> Administration -> Cookie domain)
 
 ## Development
